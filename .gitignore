@@ -1,0 +1,5 @@
+.idea
+/word2vec_model.bin.syn1neg.npy
+/word2vec_model.bin.wv.vectors.npy
+/TestReviews.csv
+/save
