@@ -6,7 +6,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Embedding
+from tensorflow.keras.layers import LSTM, Dense, Embedding, InputLayer
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 
@@ -59,11 +59,24 @@ def text_to_sequences(reviews, word2vec_model, max_sequence_length):
 
 
 # Создание модели LSTM
-def create_lstm_model(embedding_matrix, max_sequence_length):
+def create_lstm_model(embedding_matrix, max_sequence_length, batch_size):
     vocab_size, embedding_dim = embedding_matrix.shape
     model = Sequential()
-    model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, weights=[embedding_matrix], input_length=max_sequence_length, trainable=False))
-    model.add(LSTM(100, return_sequences=False, stateful=True, batch_input_shape=(32, max_sequence_length), dropout=0.2, recurrent_dropout=0.2, unroll=True))
+
+    model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length)))
+
+    model.add(Embedding(input_dim=vocab_size,
+                        output_dim=embedding_dim,
+                        trainable=False))
+
+    model.add(LSTM(100,
+                   return_sequences=False,
+                   stateful=True,
+                   dropout=0.2,
+                   recurrent_dropout=0.2,
+                   unroll=True))
+
+    # Добавление слоя Dense
     model.add(Dense(1, activation='sigmoid'))
 
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -85,6 +98,7 @@ word2vec_model = train_word2vec_model(processed_reviews)
 
 # Сохранение модели Word2Vec
 word2vec_model.save('word2vec_model.bin')
+# word2vec_model = Word2Vec.load('word2vec_model.bin')
 
 # Преобразование текста в последовательности
 max_sequence_length = 100
@@ -93,17 +107,27 @@ X, embedding_matrix = text_to_sequences(processed_reviews, word2vec_model, max_s
 # Преобразование меток
 y = np.array(labels)
 
+# Проверка размеров данных
+print("X shape:", X.shape)
+print("y shape:", y.shape)
+
 # Разделение данных на обучающую и тестовую выборки
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+print("X_train shape:", X_train.shape)
+print("y_train shape:", y_train.shape)
+
+# Размер батча
+batch_size = 32
+
 # Создание и обучение модели LSTM
-model = create_lstm_model(embedding_matrix, max_sequence_length)
+model = create_lstm_model(embedding_matrix, max_sequence_length, batch_size)
 
 # Определение контрольной точки для сохранения лучшей модели
 checkpoint = ModelCheckpoint('best_model.keras', save_best_only=True, monitor='val_loss', mode='min')
 
 # Обучение модели
-history = model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.2, callbacks=[checkpoint])
+history = model.fit(X_train, y_train, epochs=5, batch_size=batch_size, validation_split=0.2, shuffle=False, callbacks=[checkpoint])
 
 # Оценка модели
 loss, accuracy = model.evaluate(X_test, y_test)
