@@ -1,7 +1,7 @@
-import numpy as np
+from gensim.models import Word2Vec
+from tensorflow.keras.layers import LSTM
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from gensim.models import Word2Vec
 from tensorflow.keras.preprocessing.text import Tokenizer
 
 # Загрузка предобученной модели и Word2Vec
@@ -26,8 +26,10 @@ def process_review(review, model, tokenizer, word2vec_model, max_sequence_length
     processed_review = preprocess_text([review])
     sequences_padded = text_to_sequences(processed_review, tokenizer, max_sequence_length)
 
-    # Reset the model states before processing each review
-    model.reset_states()
+    # Найдите LSTM слой и сбросьте его состояния
+    for layer in model.layers:
+        if isinstance(layer, LSTM):
+            layer.reset_states()
 
     # Make predictions in chunks (if necessary)
     prediction = model.predict(sequences_padded, batch_size=1)

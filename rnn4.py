@@ -1,14 +1,13 @@
-import pandas as pd
 import numpy as np
 from gensim.models import Word2Vec
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Embedding, InputLayer
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.layers import LSTM, Dense, Embedding, InputLayer
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 
+batch_size = 32
 
 # Загрузка данных
 def load_data(positive_file, negative_file):
@@ -63,15 +62,11 @@ def create_lstm_model(embedding_matrix, max_sequence_length, batch_size):
     vocab_size, embedding_dim = embedding_matrix.shape
     model = Sequential()
 
-    model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length)))
-
-    model.add(Embedding(input_dim=vocab_size,
-                        output_dim=embedding_dim,
-                        trainable=False))
-
+    model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
+    model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, trainable=False))
     model.add(LSTM(100,
-                   return_sequences=False,
                    stateful=True,
+                   return_sequences=False,
                    dropout=0.2,
                    recurrent_dropout=0.2,
                    unroll=True))
@@ -82,10 +77,8 @@ def create_lstm_model(embedding_matrix, max_sequence_length, batch_size):
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-
-# Основной код
-positive_file = 'TrainingDataPositive.txt'
-negative_file = 'TrainingDataNegative.txt'
+positive_file = "TrainingDataPositive.txt"
+negative_file = "TrainingDataNegative.txt"
 
 # Загрузка данных
 reviews, labels = load_data(positive_file, negative_file)
@@ -93,12 +86,8 @@ reviews, labels = load_data(positive_file, negative_file)
 # Предобработка текста
 processed_reviews = preprocess_text(reviews)
 
-# Обучение модели Word2Vec
-word2vec_model = train_word2vec_model(processed_reviews)
-
-# Сохранение модели Word2Vec
-word2vec_model.save('word2vec_model.bin')
-# word2vec_model = Word2Vec.load('word2vec_model.bin')
+# Загрузка модели Word2Vec
+word2vec_model = Word2Vec.load('word2vec_model.bin')
 
 # Преобразование текста в последовательности
 max_sequence_length = 100
@@ -107,18 +96,18 @@ X, embedding_matrix = text_to_sequences(processed_reviews, word2vec_model, max_s
 # Преобразование меток
 y = np.array(labels)
 
-# Проверка размеров данных
-print("X shape:", X.shape)
-print("y shape:", y.shape)
-
 # Разделение данных на обучающую и тестовую выборки
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-print("X_train shape:", X_train.shape)
-print("y_train shape:", y_train.shape)
+# Убедитесь, что размеры данных кратны размеру батча
+train_size = (X_train.shape[0] // batch_size) * batch_size
+test_size = (X_test.shape[0] // batch_size) * batch_size
 
-# Размер батча
-batch_size = 32
+X_train = X_train[:train_size]
+y_train = y_train[:train_size]
+
+X_test = X_test[:test_size]
+y_test = y_test[:test_size]
 
 # Создание и обучение модели LSTM
 model = create_lstm_model(embedding_matrix, max_sequence_length, batch_size)
@@ -126,12 +115,16 @@ model = create_lstm_model(embedding_matrix, max_sequence_length, batch_size)
 # Определение контрольной точки для сохранения лучшей модели
 checkpoint = ModelCheckpoint('best_model.keras', save_best_only=True, monitor='val_loss', mode='min')
 
+# Ручное разделение тренировочных и валидационных данных
+X_val = X_train[-test_size:]
+y_val = y_train[-test_size:]
+
+X_train = X_train[:-test_size]
+y_train = y_train[:-test_size]
+
 # Обучение модели
-history = model.fit(X_train, y_train, epochs=5, batch_size=batch_size, validation_split=0.2, shuffle=False, callbacks=[checkpoint])
+history = model.fit(X_train, y_train, epochs=5, batch_size=batch_size, validation_data=(X_val, y_val), shuffle=False, callbacks=[checkpoint])
 
 # Оценка модели
-loss, accuracy = model.evaluate(X_test, y_test)
+loss, accuracy = model.evaluate(X_test, y_test, batch_size=batch_size)
 print(f"Test Accuracy: {accuracy}")
-
-# Сохранение embedding_matrix
-np.save('embedding_matrix.npy', embedding_matrix)
