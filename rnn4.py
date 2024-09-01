@@ -10,6 +10,7 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 
 batch_size = 32
 
+
 # Загрузка данных
 def load_data(positive_file, negative_file):
     with open(positive_file, 'r', encoding='utf-8') as f:
@@ -98,6 +99,7 @@ def load_and_preprocess_test_data(filepath, tokenizer, max_sequence_length, batc
 
     return X_test, y_test
 
+
 positive_file = "TrainingDataPositive.txt"
 negative_file = "TrainingDataNegative.txt"
 
@@ -120,13 +122,8 @@ y = np.array(labels)
 # Разделение данных на обучающую и тестовую выборки
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-test_filepath = 'TestReviews.csv'
-# Загрузка и подготовка тестовых данных
-X_test, y_test = load_and_preprocess_test_data(test_filepath, tokenizer, max_sequence_length, batch_size)
-
 # Убедитесь, что размеры данных кратны размеру батча
 train_size = (X_train.shape[0] // batch_size) * batch_size
-test_size = (X_test.shape[0] // batch_size) * batch_size
 val_size = (X_val.shape[0] // batch_size) * batch_size
 
 X_train = X_train[:train_size]
@@ -135,8 +132,9 @@ y_train = y_train[:train_size]
 X_val = X_val[:val_size]
 y_val = y_val[:val_size]
 
-X_test = X_test[:test_size]
-y_test = y_test[:test_size]
+# Загрузка и подготовка тестовых данных
+test_filepath = 'TestReviews.csv'
+X_test, y_test = load_and_preprocess_test_data(test_filepath, tokenizer, max_sequence_length, batch_size)
 
 # Создание и обучение модели LSTM
 model = create_lstm_model(embedding_matrix, max_sequence_length, batch_size)
