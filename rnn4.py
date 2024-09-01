@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from gensim.models import Word2Vec
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -54,7 +55,7 @@ def text_to_sequences(reviews, word2vec_model, max_sequence_length):
 
     sequences_padded = pad_sequences(sequences, maxlen=max_sequence_length)
 
-    return sequences_padded, embedding_matrix
+    return sequences_padded, embedding_matrix, tokenizer
 
 
 # Создание модели LSTM
@@ -77,6 +78,26 @@ def create_lstm_model(embedding_matrix, max_sequence_length, batch_size):
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
+
+def load_and_preprocess_test_data(filepath, tokenizer, max_sequence_length, batch_size):
+    # Загрузка тестовых данных
+    test_data = pd.read_csv(filepath)
+
+    # Разделение на признаки и метки
+    X_test = test_data['review'].values
+    y_test = test_data['class'].values
+
+    # Преобразование текстов в последовательности
+    X_test = tokenizer.texts_to_sequences(X_test)
+    X_test = pad_sequences(X_test, maxlen=max_sequence_length)
+
+    # Убедитесь, что размер тестовых данных кратен размеру батча
+    test_size = (X_test.shape[0] // batch_size) * batch_size
+    X_test = X_test[:test_size]
+    y_test = y_test[:test_size]
+
+    return X_test, y_test
+
 positive_file = "TrainingDataPositive.txt"
 negative_file = "TrainingDataNegative.txt"
 
@@ -91,20 +112,28 @@ word2vec_model = Word2Vec.load('word2vec_model.bin')
 
 # Преобразование текста в последовательности
 max_sequence_length = 100
-X, embedding_matrix = text_to_sequences(processed_reviews, word2vec_model, max_sequence_length)
+X, embedding_matrix, tokenizer = text_to_sequences(processed_reviews, word2vec_model, max_sequence_length)
 
 # Преобразование меток
 y = np.array(labels)
 
 # Разделение данных на обучающую и тестовую выборки
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+test_filepath = 'TestReviews.csv'
+# Загрузка и подготовка тестовых данных
+X_test, y_test = load_and_preprocess_test_data(test_filepath, tokenizer, max_sequence_length, batch_size)
 
 # Убедитесь, что размеры данных кратны размеру батча
 train_size = (X_train.shape[0] // batch_size) * batch_size
 test_size = (X_test.shape[0] // batch_size) * batch_size
+val_size = (X_val.shape[0] // batch_size) * batch_size
 
 X_train = X_train[:train_size]
 y_train = y_train[:train_size]
+
+X_val = X_val[:val_size]
+y_val = y_val[:val_size]
 
 X_test = X_test[:test_size]
 y_test = y_test[:test_size]
@@ -114,13 +143,6 @@ model = create_lstm_model(embedding_matrix, max_sequence_length, batch_size)
 
 # Определение контрольной точки для сохранения лучшей модели
 checkpoint = ModelCheckpoint('best_model.keras', save_best_only=True, monitor='val_loss', mode='min')
-
-# Ручное разделение тренировочных и валидационных данных
-X_val = X_train[-test_size:]
-y_val = y_train[-test_size:]
-
-X_train = X_train[:-test_size]
-y_train = y_train[:-test_size]
 
 # Обучение модели
 history = model.fit(X_train, y_train, epochs=5, batch_size=batch_size, validation_data=(X_val, y_val), shuffle=False, callbacks=[checkpoint])
