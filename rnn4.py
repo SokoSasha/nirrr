@@ -66,12 +66,8 @@ def create_lstm_model(embedding_matrix, max_sequence_length, batch_size):
 
     model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
     model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, trainable=False))
-    model.add(LSTM(100,
-                   stateful=True,
-                   return_sequences=False,
-                   dropout=0.2,
-                   recurrent_dropout=0.2,
-                   unroll=True))
+    model.add(LSTM(100, stateful=True, return_sequences=True, dropout=0.2, recurrent_dropout=0.2, unroll=True))
+    model.add(LSTM(50, stateful=True, return_sequences=True, dropout=0.2, recurrent_dropout=0.2, unroll=True))
 
     # Добавление слоя Dense
     model.add(Dense(1, activation='sigmoid'))
