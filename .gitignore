@@ -1,5 +1,6 @@
 .idea
-/word2vec_model.bin.syn1neg.npy
-/word2vec_model.bin.wv.vectors.npy
+/word2vec_model.bin*
 /TestReviews.csv
 /save
+/*.keras
+#/TrainingData*

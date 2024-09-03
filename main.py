@@ -42,6 +42,7 @@ def cut_to_size(X, all_labels):
 
     return X_train, y_train, X_val, y_val
 
+
 def load_testing_data(test_filepath, lm):
     test_data = pd.read_csv(test_filepath)
     X_test = test_data['review'].values
@@ -55,15 +56,20 @@ def load_testing_data(test_filepath, lm):
 
     return X_test, y_test
 
+
 def main():
     positive_file = "TrainingDataPositive.txt"
     negative_file = "TrainingDataNegative.txt"
     test_filepath = 'TestReviews.csv'
 
-    lm = LanguageModel()
+    lm = LanguageModel(window=20, vector_size=200, min_count=5)
 
     all_reviews, all_labels = load_training_data(positive_file, negative_file, lm)
-    lm.train(all_reviews)
+    lm.train(all_reviews, epochs=10)
+
+    # TODO: Don't forget to remove
+    return
+
     X = lm.preprocess(all_reviews)
     X_train, y_train, X_val, y_val = cut_to_size(X, all_labels)
 

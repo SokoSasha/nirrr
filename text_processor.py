@@ -3,13 +3,12 @@ import string
 
 import numpy as np
 from gensim.models import Word2Vec
-from sklearn.utils import shuffle
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
 
 class LanguageModel:
-    def __init__(self, max_sequence_length=100, vector_size=300, window=5, min_count=1, workers=4):
+    def __init__(self, max_sequence_length=200, vector_size=300, window=10, min_count=5, workers=4):
         self.max_sequence_length = max_sequence_length
         self.model = Word2Vec(vector_size=vector_size, window=window, min_count=min_count, workers=workers)
         self.tokenizer = Tokenizer()
