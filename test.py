@@ -1,9 +1,8 @@
 from gensim.models import Word2Vec
-from keras.src.layers import Bidirectional
-from tensorflow.keras.layers import LSTM, Bidirectional
-from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
+
+from lstm_model import BestModelEverLOL
 
 positive_file = "TrainingDataPositive.txt"
 negative_file = "TrainingDataNegative.txt"
@@ -27,7 +26,7 @@ def get_tokenizer(positive_file, negative_file):
     return tokenizer
 
 
-def process_review(review, model, tokenizer, word2vec_model, max_sequence_length):
+def process_review(review, model: BestModelEverLOL, tokenizer, word2vec_model, max_sequence_length):
     def preprocess_text(_reviews):
         return [review.lower().strip() for review in _reviews]
 
@@ -39,20 +38,14 @@ def process_review(review, model, tokenizer, word2vec_model, max_sequence_length
     processed_review = preprocess_text([review])
     sequences_padded = text_to_sequences(processed_review, tokenizer, max_sequence_length)
 
-    prediction = model.predict(sequences_padded, batch_size=1, verbose=0)
+    prediction = model.predict(sequences_padded)
 
     confidence = prediction[0][0]
     return confidence
 
 
-def reset_lstm(model):
-    for layer in model.layers:
-        if isinstance(layer, LSTM) or isinstance(layer, Bidirectional):
-            layer.reset_states()
-
-
 def main():
-    model = load_model('best_model.keras')
+    model = BestModelEverLOL.load('best_model.keras')
     word2vec_model = Word2Vec.load('word2vec_model.bin')
     tokenizer = get_tokenizer(positive_file, negative_file)
 
@@ -76,7 +69,7 @@ def main():
                 print(f"{confidence * 100:.2f}% negative")
 
         print()
-        reset_lstm(model)
+        model.reset_state()
 
 
 if __name__ == '__main__':

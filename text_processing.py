@@ -7,6 +7,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
 
+
 def load_data(positive_file, negative_file):
     with open(positive_file, 'r', encoding='utf-8') as f:
         positive_reviews = [line.strip() for line in f.readlines()]
@@ -86,19 +87,23 @@ def get_data(positive_file, negative_file, test_filepath, BATCH_SIZE):
     processed_reviews = preprocess_text(reviews)
 
     # Загрузка модели Word2Vec
-    word2vec_model = Word2Vec.load('word2vec_model.bin')
+    # word2vec_model = Word2Vec.load('word2vec_model.bin')
+
+    print('Training Word2Vec model... ', end='')
+    word2vec_model = train_word2vec_model(processed_reviews)
+    word2vec_model.save('word2vec_model.bin')
+    print('Done!')
 
     # Преобразование текста в последовательности
     max_sequence_length = 100
     X, embedding_matrix, tokenizer = text_to_sequences(processed_reviews, word2vec_model, max_sequence_length)
+    np.save('embedding_matrix.npy', embedding_matrix)
 
     # Преобразование меток
     y = np.array(labels)
 
     # Разделение данных на обучающую и тестовую выборки
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    print(f'X_train.shape: {X_train.shape}')
 
     # Убедитесь, что размеры данных кратны размеру батча
     train_size = (X_train.shape[0] // BATCH_SIZE) * BATCH_SIZE
@@ -114,3 +119,4 @@ def get_data(positive_file, negative_file, test_filepath, BATCH_SIZE):
     X_test, y_test = load_and_preprocess_test_data(test_filepath, tokenizer, max_sequence_length, BATCH_SIZE)
 
     return X_train, y_train, X_val, y_val, X_test, y_test, embedding_matrix, max_sequence_length
+
