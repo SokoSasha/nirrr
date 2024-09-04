@@ -10,7 +10,7 @@ BATCH_SIZE = 32
 NUM_EPOCHS = 5
 
 
-def load_training_data(positive_file, negative_file, lm):
+def load_training_data(positive_file, negative_file):
     with open(positive_file, 'r', encoding='utf-8') as f:
         positive_reviews = [line.strip() for line in f.readlines()]
 
@@ -62,11 +62,13 @@ def main():
     negative_file = "TrainingDataNegative.txt"
     test_filepath = 'TestReviews.csv'
 
+    all_reviews, all_labels = load_training_data(positive_file, negative_file)
+
     # best so far: window=7, vector_size=200 (not much difference), min_count=10
-    lm = LanguageModel(window=7, vector_size=20, min_count=10)
-    all_reviews, all_labels = load_training_data(positive_file, negative_file, lm)
-    lm.train(all_reviews, epochs=10, check=True)
-    lm.save()
+    # lm = LanguageModel(window=7, vector_size=20, min_count=10)
+    # lm.train(all_reviews, epochs=10, check=True)
+    # lm.save()
+    lm = LanguageModel.load()
 
     X = lm.preprocess(all_reviews)
     X_train, y_train, X_val, y_val = cut_to_size(X, all_labels)
@@ -86,7 +88,7 @@ def main():
     loss, accuracy = model.evaluate(X_test, y_test)
     print(f"Test Accuracy: {accuracy * 100:.2f}")
 
-    model.show_confision_matrix(X_test, y_test)
+    model.show_confision_matrix(X_test, y_test, show_description=True)
     model.show_roc_curve(X_test, y_test)
 
 

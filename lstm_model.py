@@ -21,8 +21,7 @@ class BestModelEverLOL:
             # Vectorization
             self.model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
             # LSTMs
-            self.model.add(Bidirectional(LSTM(64, stateful=True, return_sequences=True, dropout=0.5, recurrent_dropout=0.2)))
-            self.model.add(Bidirectional(LSTM(32, stateful=True, return_sequences=False, dropout=0.5, recurrent_dropout=0.2)))
+            self.model.add(LSTM(64, stateful=True, return_sequences=False, dropout=0.05, recurrent_dropout=0.2))
 
             # Denses
             self.model.add(Dense(1, activation='sigmoid'))
