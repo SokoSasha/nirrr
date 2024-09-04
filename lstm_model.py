@@ -54,7 +54,7 @@ class BestModelEverLOL:
         self.model.save(filename)
 
     @staticmethod
-    def load(filename):
+    def load(filename='lstm_model.keras'):
         instance = BestModelEverLOL()
         instance.model = load_model(filename)
         instance.model_name = filename
@@ -75,8 +75,8 @@ class BestModelEverLOL:
         loss, accuracy = self.model.evaluate(X_test, y_test, batch_size=self.batch_size)
         return loss, accuracy
 
-    def predict(self, X_test):
-        return self.model.predict(X_test, batch_size=self.batch_size)
+    def predict(self, X_test, batch_size=1, verbose=0):
+        return self.model.predict(X_test, batch_size=batch_size, verbose=verbose)
 
     def reset_state(self):
         for layer in self.model.layers:
@@ -84,7 +84,7 @@ class BestModelEverLOL:
                 layer.reset_states()
 
     def show_confision_matrix(self, X_test, y_test, show_description=True):
-        y_pred_probs = self.predict(X_test)
+        y_pred_probs = self.predict(X_test, batch_size=self.batch_size)
         y_pred = (y_pred_probs > 0.5).astype(int)
 
         conf_matrix = confusion_matrix(y_test, y_pred)
@@ -100,7 +100,7 @@ class BestModelEverLOL:
         plt.show()
 
     def show_roc_curve(self, X_test, y_test):
-        y_pred_probs = self.predict(X_test)
+        y_pred_probs = self.predict(X_test, batch_size=self.batch_size)
 
         y_pred = (y_pred_probs > 0.5).astype(int)
         y_pred_probs = y_pred_probs.ravel()

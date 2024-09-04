@@ -1,12 +1,14 @@
-from gensim.models import Word2Vec
+import numpy as np
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
 from lstm_model import BestModelEverLOL
+from text_processor import LanguageModel
 
-positive_file = "TrainingDataPositive.txt"
-negative_file = "TrainingDataNegative.txt"
-max_sequence_length = 100
+
+# positive_file = "TrainingDataPositive.txt"
+# negative_file = "TrainingDataNegative.txt"
+# max_sequence_length = 100
 
 
 def get_tokenizer(positive_file, negative_file):
@@ -45,9 +47,8 @@ def process_review(review, model: BestModelEverLOL, tokenizer, word2vec_model, m
 
 
 def main():
-    model = BestModelEverLOL.load('best_model.keras')
-    word2vec_model = Word2Vec.load('word2vec_model.bin')
-    tokenizer = get_tokenizer(positive_file, negative_file)
+    model = BestModelEverLOL.load()
+    lm = LanguageModel.load()
 
     # Список отзывов для обработки
     reviews = [
@@ -55,20 +56,20 @@ def main():
         "Fantastic spot for an even or a quite cocktail.  They were swell to host the Yelp crew with a great drink menu and super attentive staff.I'd certainly recommend anything with the purred fruit in it (apple, any of them really)!",
         "Love this place. Stiff martinis and cocktails, cheap drinks, good service, nice atmosphere to chill in the upstairs lounge and hang up with your friends. Classy crowd and much more mature, older, and professional crowd. There aren't any of those college frat boys or belligerent drunks there, which is so great. Very nice place to wind down after a long day.",
         "Never going back!!This was my second time here. Wasn't that impressed the first time, but thought I'll give it another look, more because one of the guys in our team really wanted to go here. Food: Just ok, over-priced and very small portions. Came out hungry. Deserts are quite niceService: I think I would have given this place 2 12 stars was it not for the bad service. Very rude waiter, I am not going to go into details of what happenned at our table but suffice to say I left the place pissed! Never going back and nor is the guy in our team who really wanted to go in the first place.I think I hate a rude (and I mean rude not bad) service more that bad food. Bad food just leaves me with no feelings but a rude server leaves me pissed!"
-        # "After being admitted to this facility my elderly friend received a few days treatment and then was constantly badgered to sign into a hospice facility called Solari. She was told by TLC that she could stay there up to 100 days. Then suddenly, after less than 2 weeks she was told she had to leave...period, no notice. Once again the Solari rep showed up only this time she stated that she could only stay 2 days in Solari. Moved her the following day. TLC on site social worker was usually no where to be found and never returned her calls or the many pages the receptionist made for her stating ""I know she's here, I don't know why she's not responding"".Avoid this place at any costs!",
     ]
 
     for review in reviews:
         print(f'Review: {review}')
         review = review.split('.')
         for sentence in review:
-            confidence = process_review(sentence, model, tokenizer, word2vec_model, max_sequence_length)
+            preprocessed_sentence = lm.preprocess([sentence])
+            confidence = model.predict(preprocessed_sentence)[0][0]
             if confidence > 0.5:
                 print(f"{confidence * 100:.2f}% positive")
             else:
-                print(f"{confidence * 100:.2f}% negative")
+                print(f"{(1 - confidence) * 100:.2f}% negative")
 
-        print()
+        print('-----------------------------------------------------------------------------')
         model.reset_state()
 
 

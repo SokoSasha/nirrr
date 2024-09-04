@@ -1,5 +1,6 @@
 import pickle
 import string
+import time
 
 import numpy as np
 from gensim.models import Word2Vec
@@ -14,8 +15,10 @@ class LanguageModel:
         self.tokenizer = Tokenizer()
         self.embedding_matrix = None
 
-    def train(self, reviews: list[str], epochs=5, update=False):
-        translator = str.maketrans('', '', string.punctuation)
+    def train(self, reviews: list[str], epochs=5, update=False, check=False):
+        print("Training model... ", end="")
+        start_time = time.perf_counter()
+        translator = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
         processed_reviews = [review.lower().translate(translator).split() for review in reviews]
 
         self.tokenizer.fit_on_texts(processed_reviews)
@@ -23,34 +26,42 @@ class LanguageModel:
         self.model.build_vocab(processed_reviews, update=update)
         history = self.model.train(processed_reviews, total_examples=len(reviews), epochs=epochs)
 
+        elapsed_time = time.perf_counter() - start_time
+        print(f"done in {elapsed_time:.4f} seconds")
+
         word_index = self.tokenizer.word_index
         self.embedding_matrix = np.zeros((len(word_index) + 1, self.model.vector_size))
         for word, i in word_index.items():
             if word in self.model.wv:
                 self.embedding_matrix[i] = self.model.wv[word]
 
-        similarity = self.model.wv.similarity('good', 'great')
-        print(f"Similarity between 'good' and 'great': {similarity * 100:.2f}%")
+        if check:
+            similarity = self.model.wv.similarity('good', 'great')
+            print(f"Similarity between 'good' and 'great': {similarity * 100:.2f}%")
 
-        most_similar_words = self.model.wv.most_similar('bad', topn=5)
-        print(f"Most similar words to 'bad': {most_similar_words}")
+            most_similar_words = self.model.wv.most_similar('good', topn=5)
+            print(f"Most similar words to 'good': {most_similar_words}")
 
-        result = self.model.wv.most_similar(positive=['boyfriend', 'woman'], negative=['man'], topn=5)
-        print(f"Result for analogy 'boyfriend - man + woman': {result}")
+            most_similar_words = self.model.wv.most_similar('bad', topn=5)
+            print(f"Most similar words to 'bad': {most_similar_words}")
 
         return history
 
-    def save_model(self, word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
+    def save(self, word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
         self.model.save(word2vec_name)
         np.save(embedding_name, self.embedding_matrix)
         with open(tokenizer_name, 'wb') as file:
             pickle.dump(self.tokenizer, file)
 
-    def load_model(self, word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
-        self.model = Word2Vec.load(word2vec_name)
-        self.embedding_matrix = np.load(embedding_name)
+    @staticmethod
+    def load(word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
+        instance = LanguageModel()
+        instance.model = Word2Vec.load(word2vec_name)
+        instance.embedding_matrix = np.load(embedding_name)
         with open(tokenizer_name, 'rb') as file:
-            self.tokenizer = pickle.load(file)
+            instance.tokenizer = pickle.load(file)
+
+        return instance
 
     def preprocess(self, reviews):
         sequences = self.tokenizer.texts_to_sequences(reviews)

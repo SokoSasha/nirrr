@@ -62,13 +62,11 @@ def main():
     negative_file = "TrainingDataNegative.txt"
     test_filepath = 'TestReviews.csv'
 
-    lm = LanguageModel(window=20, vector_size=200, min_count=5)
-
+    # best so far: window=7, vector_size=200 (not much difference), min_count=10
+    lm = LanguageModel(window=7, vector_size=20, min_count=10)
     all_reviews, all_labels = load_training_data(positive_file, negative_file, lm)
-    lm.train(all_reviews, epochs=10)
-
-    # TODO: Don't forget to remove
-    return
+    lm.train(all_reviews, epochs=10, check=True)
+    lm.save()
 
     X = lm.preprocess(all_reviews)
     X_train, y_train, X_val, y_val = cut_to_size(X, all_labels)

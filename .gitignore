@@ -3,3 +3,5 @@
 /TestReviews.csv
 /save
 /*.keras
+/tokenizer.pkl
+/embedding_matrix.npy
