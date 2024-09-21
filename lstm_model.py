@@ -62,7 +62,7 @@ class BestModelEverLOL:
             batch_size = self.batch_size
         return self.model.predict(X_test, batch_size=batch_size, verbose=verbose)
 
-    def show_confision_matrix(self, X_test, y_test, show_description=True):
+    def show_confision_matrix(self, X_test, y_test):
         y_pred_probs = self.predict(X_test, batch_size=self.batch_size)
         y_pred = (y_pred_probs > 0.5).astype(int)
 
@@ -74,8 +74,6 @@ class BestModelEverLOL:
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
         plt.title('Confusion Matrix')
-        if show_description:
-            plt.suptitle(self.model.summary())
         plt.show()
 
     def show_roc_curve(self, X_test, y_test):
