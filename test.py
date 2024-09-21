@@ -33,8 +33,8 @@ def main():
         for sentence in review:
             if sentence.strip():
                 context_buffer = ['.'.join(context_buffer + [sentence])]
-                preprocessed_sentence = lm.preprocess(context_buffer)
                 start_time = time.perf_counter()
+                preprocessed_sentence = lm.preprocess(context_buffer)
                 confidence = model.predict(preprocessed_sentence, verbose=0)[0][0]
                 conf.append(confidence)
                 elapsed_time = time.perf_counter() - start_time
