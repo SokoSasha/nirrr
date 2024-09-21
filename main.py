@@ -6,7 +6,9 @@ from sklearn.utils import shuffle
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
 
-BATCH_SIZE = 32
+import matplotlib.pyplot as plt
+
+BATCH_SIZE = 64
 NUM_EPOCHS = 5
 
 
@@ -64,7 +66,7 @@ def main():
 
     all_reviews, all_labels = load_training_data(positive_file, negative_file)
 
-    # best so far: window=7, vector_size=200 (not much difference), min_count=10
+    # # best so far: window=7, vector_size=200 (not much difference), min_count=10
     # lm = LanguageModel(window=7, vector_size=20, min_count=10)
     # lm.train(all_reviews, epochs=10, check=True)
     # lm.save()
@@ -81,7 +83,7 @@ def main():
     # Создание и обучение модели LSTM
     model = BestModelEverLOL(embedding_matrix, max_sequence_length, BATCH_SIZE)
     model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
-    model.save('lstm_model.keras')
+    # model.save('lstm_model.keras')
     # model = BestModelEverLOL.load('lstm_model.keras')
 
     # Оценка модели
@@ -90,6 +92,31 @@ def main():
 
     model.show_confision_matrix(X_test, y_test, show_description=True)
     model.show_roc_curve(X_test, y_test)
+
+    nots = 10
+    reviews = ["Not"]*nots + ["good"]
+
+    print("With reset states")
+    for review in reviews:
+        review = review.split('.')
+        for sentence in review:
+            if sentence.strip():
+                preprocessed_sentence = lm.preprocess([sentence])
+                confidence = model.predict(preprocessed_sentence)[0][0]
+                print(f"{confidence * 100:.2f}% positive")
+        model.reset_state(verbose=1)
+    print('_______________________________________________________________________')
+
+    print("Without reset states")
+    for review in reviews:
+        review = review.split('.')
+        for sentence in review:
+            if sentence.strip():
+                preprocessed_sentence = lm.preprocess([sentence])
+                confidence = model.predict(preprocessed_sentence)[0][0]
+                print(f"{confidence * 100:.2f}% positive")
+        # model.reset_state(verbose=1)
+    print('_______________________________________________________________________')
 
 
 if __name__ == "__main__":

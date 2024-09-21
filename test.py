@@ -5,46 +5,6 @@ from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
 
 
-# positive_file = "TrainingDataPositive.txt"
-# negative_file = "TrainingDataNegative.txt"
-# max_sequence_length = 100
-
-
-def get_tokenizer(positive_file, negative_file):
-    def load_data(positive_file, negative_file):
-        with open(positive_file, 'r', encoding='utf-8') as f:
-            positive_reviews = [line.strip() for line in f.readlines()]
-
-        with open(negative_file, 'r', encoding='utf-8') as f:
-            negative_reviews = [line.strip() for line in f.readlines()]
-
-        return positive_reviews + negative_reviews
-
-    reviews = load_data(positive_file, negative_file)
-    tokenizer = Tokenizer()
-    tokenizer.fit_on_texts(reviews)
-
-    return tokenizer
-
-
-def process_review(review, model: BestModelEverLOL, tokenizer, word2vec_model, max_sequence_length):
-    def preprocess_text(_reviews):
-        return [review.lower().strip() for review in _reviews]
-
-    def text_to_sequences(_reviews, _tokenizer, _max_sequence_length):
-        sequences = _tokenizer.texts_to_sequences(_reviews)
-        _sequences_padded = pad_sequences(sequences, maxlen=_max_sequence_length)
-        return _sequences_padded
-
-    processed_review = preprocess_text([review])
-    sequences_padded = text_to_sequences(processed_review, tokenizer, max_sequence_length)
-
-    prediction = model.predict(sequences_padded)
-
-    confidence = prediction[0][0]
-    return confidence
-
-
 def main():
     model = BestModelEverLOL.load()
     lm = LanguageModel.load()
@@ -63,11 +23,11 @@ def main():
         for sentence in review:
             if sentence.strip():
                 preprocessed_sentence = lm.preprocess([sentence])
-                confidence = model.predict(preprocessed_sentence, batch_size=1)[0][0]
+                confidence = model.predict(preprocessed_sentence, verbose=1)[0][0]
                 print(f"{confidence * 100:.2f}% positive")
 
         print('-----------------------------------------------------------------------------')
-        model.reset_state()
+        model.reset_state(verbose=1)
 
 
 if __name__ == '__main__':

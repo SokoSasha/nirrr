@@ -9,28 +9,24 @@ from tensorflow.keras.models import Sequential, load_model
 
 
 class BestModelEverLOL:
-    def __init__(self, embedding_matrix=None, max_sequence_length=None, batch_size=None):
+    def __init__(self, embedding_matrix, max_sequence_length, batch_size):
         self.batch_size = batch_size
         self.model_name = ""
 
-        if embedding_matrix is not None and max_sequence_length is not None:
-            vocab_size, embedding_dim = embedding_matrix.shape
-            self.model = Sequential()
-            # Define input data shape
-            self.model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
-            # Vectorization
-            self.model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
-            # LSTMs
-            self.model.add(LSTM(64, stateful=True, return_sequences=False, dropout=0.05, recurrent_dropout=0.2))
+        vocab_size, embedding_dim = embedding_matrix.shape
+        self.model = Sequential()
+        # Define input data shape
+        self.model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
+        # Vectorization
+        self.model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
+        # LSTMs
+        self.model.add(LSTM(64, stateful=True, dropout=0.05, recurrent_dropout=0.2))
+        # Denses
+        self.model.add(Dense(1, activation='sigmoid'))
 
-            # Denses
-            self.model.add(Dense(1, activation='sigmoid'))
+        self.model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['binary_accuracy'])
 
-            self.model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['binary_accuracy'])
-
-            self.model_description = self._gen_model_description()
-        else:
-            self.model = None
+        self.model_description = self._gen_model_description()
 
     def _gen_model_description(self):
         model_desc = ""
@@ -45,8 +41,10 @@ class BestModelEverLOL:
         return model_desc
 
     def train(self, X_train, y_train, X_val, y_val, num_epochs):
-        history = self.model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=num_epochs, batch_size=self.batch_size)
-        return history
+        for ep in range(num_epochs):
+            print(f"Epoch {ep+1}/{num_epochs}")
+            self.model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1, batch_size=self.batch_size)
+            self.reset_state()
 
     def save(self, filename):
         self.model_name = filename
@@ -54,11 +52,14 @@ class BestModelEverLOL:
 
     @staticmethod
     def load(filename='lstm_model.keras'):
-        instance = BestModelEverLOL()
-        instance.model = load_model(filename)
-        instance.model_name = filename
-        instance.model_description = instance._gen_model_description()
-        instance.batch_size = instance.model.layers[0].input.shape[0]
+        tmp_model = load_model(filename)
+        batch_size = tmp_model.layers[0].input.shape[0]
+        max_sequence_length = tmp_model.layers[0].input.shape[1]
+        embedding_matrix = tmp_model.layers[0].embeddings_initializer.value
+        instance = BestModelEverLOL(embedding_matrix, max_sequence_length, batch_size)
+
+        for i in range(len(tmp_model.layers)):
+            instance.model.layers[i].set_weights(tmp_model.layers[i].get_weights())
 
         return instance
 
@@ -74,13 +75,20 @@ class BestModelEverLOL:
         loss, accuracy = self.model.evaluate(X_test, y_test, batch_size=self.batch_size)
         return loss, accuracy
 
-    def predict(self, X_test, batch_size=1, verbose=0):
+    def predict(self, X_test, batch_size=None, verbose=0):
+        if batch_size is None:
+            batch_size = self.batch_size
         return self.model.predict(X_test, batch_size=batch_size, verbose=verbose)
 
-    def reset_state(self):
+    def reset_state(self, verbose=0):
+        if verbose:
+            print("Resetting model...")
+
         for layer in self.model.layers:
-            if isinstance(layer, LSTM) or isinstance(layer, Bidirectional):
+            try:
                 layer.reset_states()
+            except AttributeError:
+                continue
 
     def show_confision_matrix(self, X_test, y_test, show_description=True):
         y_pred_probs = self.predict(X_test, batch_size=self.batch_size)
