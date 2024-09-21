@@ -6,9 +6,7 @@ from sklearn.utils import shuffle
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
 
-import matplotlib.pyplot as plt
-
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 NUM_EPOCHS = 5
 
 
@@ -33,14 +31,14 @@ def load_training_data(positive_file, negative_file):
 def cut_to_size(X, all_labels):
     X_train, X_val, y_train, y_val = train_test_split(X, np.array(all_labels), test_size=0.2, random_state=42)
 
-    train_size = (X_train.shape[0] // BATCH_SIZE) * BATCH_SIZE
-    val_size = (X_val.shape[0] // BATCH_SIZE) * BATCH_SIZE
-
-    X_train = X_train[:train_size]
-    y_train = y_train[:train_size]
-
-    X_val = X_val[:val_size]
-    y_val = y_val[:val_size]
+    # train_size = (X_train.shape[0] // BATCH_SIZE) * BATCH_SIZE
+    # val_size = (X_val.shape[0] // BATCH_SIZE) * BATCH_SIZE
+    #
+    # X_train = X_train[:train_size]
+    # y_train = y_train[:train_size]
+    #
+    # X_val = X_val[:val_size]
+    # y_val = y_val[:val_size]
 
     return X_train, y_train, X_val, y_val
 
@@ -51,10 +49,10 @@ def load_testing_data(test_filepath, lm):
     X_test = lm.preprocess(X_test)
     y_test = test_data['class'].values
 
-    test_size = (X_test.shape[0] // BATCH_SIZE) * BATCH_SIZE
+    # test_size = (X_test.shape[0] // BATCH_SIZE) * BATCH_SIZE
     X_test, y_test = shuffle(X_test, y_test, random_state=42)
-    X_test = X_test[:test_size]
-    y_test = y_test[:test_size]
+    # X_test = X_test[:test_size]
+    # y_test = y_test[:test_size]
 
     return X_test, y_test
 
@@ -81,10 +79,11 @@ def main():
     max_sequence_length = lm.get_max_sequence_length
 
     # Создание и обучение модели LSTM
-    model = BestModelEverLOL(embedding_matrix, max_sequence_length, BATCH_SIZE)
-    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
+    # model = BestModelEverLOL(embedding_matrix, max_sequence_length, BATCH_SIZE)
+    # model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
     # model.save('lstm_model.keras')
-    # model = BestModelEverLOL.load('lstm_model.keras')
+    model = BestModelEverLOL.load('lstm_model.keras')
+    print(model.model.summary())
 
     # Оценка модели
     loss, accuracy = model.evaluate(X_test, y_test)
@@ -92,31 +91,6 @@ def main():
 
     model.show_confision_matrix(X_test, y_test, show_description=True)
     model.show_roc_curve(X_test, y_test)
-
-    nots = 10
-    reviews = ["Not"]*nots + ["good"]
-
-    print("With reset states")
-    for review in reviews:
-        review = review.split('.')
-        for sentence in review:
-            if sentence.strip():
-                preprocessed_sentence = lm.preprocess([sentence])
-                confidence = model.predict(preprocessed_sentence)[0][0]
-                print(f"{confidence * 100:.2f}% positive")
-        model.reset_state(verbose=1)
-    print('_______________________________________________________________________')
-
-    print("Without reset states")
-    for review in reviews:
-        review = review.split('.')
-        for sentence in review:
-            if sentence.strip():
-                preprocessed_sentence = lm.preprocess([sentence])
-                confidence = model.predict(preprocessed_sentence)[0][0]
-                print(f"{confidence * 100:.2f}% positive")
-        # model.reset_state(verbose=1)
-    print('_______________________________________________________________________')
 
 
 if __name__ == "__main__":

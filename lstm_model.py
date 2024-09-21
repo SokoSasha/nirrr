@@ -4,47 +4,37 @@ import seaborn as sns
 from keras.src.initializers import Constant
 from keras.src.optimizers import Adam
 from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
-from tensorflow.keras.layers import Bidirectional, LSTM, Dense, Embedding, InputLayer
+from tensorflow.keras.layers import LSTM, Dense, Embedding, InputLayer
 from tensorflow.keras.models import Sequential, load_model
 
 
 class BestModelEverLOL:
-    def __init__(self, embedding_matrix, max_sequence_length, batch_size):
+    def __init__(self, embedding_matrix=None, max_sequence_length=None, batch_size=None):
         self.batch_size = batch_size
         self.model_name = ""
 
-        vocab_size, embedding_dim = embedding_matrix.shape
-        self.model = Sequential()
-        # Define input data shape
-        self.model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
-        # Vectorization
-        self.model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
-        # LSTMs
-        self.model.add(LSTM(64, stateful=True, dropout=0.05, recurrent_dropout=0.2))
-        # Denses
-        self.model.add(Dense(1, activation='sigmoid'))
+        self.batch_size = batch_size
+        self.model_name = ""
 
-        self.model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['binary_accuracy'])
+        if embedding_matrix is not None and max_sequence_length is not None:
+            vocab_size, embedding_dim = embedding_matrix.shape
+            self.model = Sequential()
+            # Define input data shape
+            self.model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
+            # Vectorization
+            self.model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
+            # LSTMs
+            self.model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2))
 
-        self.model_description = self._gen_model_description()
+            # Denses
+            self.model.add(Dense(1, activation='sigmoid'))
 
-    def _gen_model_description(self):
-        model_desc = ""
-        for layer in self.model.layers:
-            if isinstance(layer, Bidirectional):
-                model_desc += f"{layer.name}({layer.forward_layer.name}) [{layer.input.shape}]\n"
-            elif isinstance(layer, Dense):
-                model_desc += f"{layer.name}({layer.activation.__name__}) [{layer.input.shape}]\n"
-            else:
-                model_desc += f"{layer.name} [{layer.input.shape}]\n"
-
-        return model_desc
+            self.model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['binary_accuracy'])
+        else:
+            self.model = None
 
     def train(self, X_train, y_train, X_val, y_val, num_epochs):
-        for ep in range(num_epochs):
-            print(f"Epoch {ep+1}/{num_epochs}")
-            self.model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1, batch_size=self.batch_size)
-            self.reset_state()
+        self.model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=num_epochs, batch_size=self.batch_size)
 
     def save(self, filename):
         self.model_name = filename
@@ -52,24 +42,16 @@ class BestModelEverLOL:
 
     @staticmethod
     def load(filename='lstm_model.keras'):
-        tmp_model = load_model(filename)
-        batch_size = tmp_model.layers[0].input.shape[0]
-        max_sequence_length = tmp_model.layers[0].input.shape[1]
-        embedding_matrix = tmp_model.layers[0].embeddings_initializer.value
-        instance = BestModelEverLOL(embedding_matrix, max_sequence_length, batch_size)
-
-        for i in range(len(tmp_model.layers)):
-            instance.model.layers[i].set_weights(tmp_model.layers[i].get_weights())
+        instance = BestModelEverLOL()
+        instance.model = load_model(filename)
+        instance.model_name = filename
+        instance.batch_size = instance.model.layers[0].input.shape[0]
 
         return instance
 
     @property
     def name(self):
         return self.model_name
-
-    @property
-    def description(self):
-        return self.model_description
 
     def evaluate(self, X_test, y_test):
         loss, accuracy = self.model.evaluate(X_test, y_test, batch_size=self.batch_size)
@@ -79,16 +61,6 @@ class BestModelEverLOL:
         if batch_size is None:
             batch_size = self.batch_size
         return self.model.predict(X_test, batch_size=batch_size, verbose=verbose)
-
-    def reset_state(self, verbose=0):
-        if verbose:
-            print("Resetting model...")
-
-        for layer in self.model.layers:
-            try:
-                layer.reset_states()
-            except AttributeError:
-                continue
 
     def show_confision_matrix(self, X_test, y_test, show_description=True):
         y_pred_probs = self.predict(X_test, batch_size=self.batch_size)
@@ -103,7 +75,7 @@ class BestModelEverLOL:
         plt.ylabel('Actual')
         plt.title('Confusion Matrix')
         if show_description:
-            plt.suptitle(self.model_description)
+            plt.suptitle(self.model.summary())
         plt.show()
 
     def show_roc_curve(self, X_test, y_test):
