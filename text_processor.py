@@ -6,6 +6,8 @@ import numpy as np
 from gensim.models import Word2Vec
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 
 
 class LanguageModel:
@@ -14,12 +16,20 @@ class LanguageModel:
         self.model = Word2Vec(vector_size=vector_size, window=window, min_count=min_count, workers=workers)
         self.tokenizer = Tokenizer()
         self.embedding_matrix = None
+        self.stop_words = set(stopwords.words('english'))  # Список стоп-слов
+        self.lemmatizer = WordNetLemmatizer()  # Лемматизатор
 
     def train(self, reviews: list[str], epochs=5, update=False, check=False):
         print("Training model... ", end="")
         start_time = time.perf_counter()
         translator = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
-        processed_reviews = [review.lower().translate(translator).split() for review in reviews]
+
+        # Переводим в нижний регистр, удаляем пунктуацию, токенизируем, удаляем стоп-слова и лемматизируем
+        processed_reviews = [
+            [self.lemmatizer.lemmatize(word) for word in review.lower().translate(translator).split() if
+             word not in self.stop_words]
+            for review in reviews
+        ]
 
         self.tokenizer.fit_on_texts(processed_reviews)
 
@@ -64,7 +74,14 @@ class LanguageModel:
         return instance
 
     def preprocess(self, reviews):
-        sequences = self.tokenizer.texts_to_sequences(reviews)
+        translator = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
+        processed_reviews = [
+            [self.lemmatizer.lemmatize(word) for word in review.lower().translate(translator).split() if
+             word not in self.stop_words]
+            for review in reviews
+        ]
+
+        sequences = self.tokenizer.texts_to_sequences(processed_reviews)
         sequences_padded = pad_sequences(sequences, maxlen=self.max_sequence_length)
 
         return sequences_padded

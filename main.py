@@ -50,19 +50,19 @@ def main():
     all_reviews, all_labels = load_training_data(positive_file, negative_file)
 
     # # best so far: window=7, vector_size=200 (not much difference), min_count=10
-    # lm = LanguageModel(window=7, vector_size=20, min_count=10)
-    # lm.train(all_reviews, epochs=10, check=True)
-    # lm.save()
-    lm = LanguageModel.load()
+    lm = LanguageModel(window=7, vector_size=20, min_count=10)
+    lm.train(all_reviews, epochs=10, check=True)
+    lm.save()
+    # lm = LanguageModel.load()
 
     X = lm.preprocess(all_reviews)
     X_train, X_val, y_train, y_val = train_test_split(X, np.array(all_labels), test_size=0.2, random_state=42)
 
-    X_train_0 = X_train[:len(X_train)//4]
-    X_train_1 = X_train[len(X_train)//4:]
-
-    y_train_0 = y_train[:len(y_train)//4]
-    y_train_1 = y_train[len(y_train)//4:]
+    # X_train_0 = X_train[:len(X_train)//4]
+    # X_train_1 = X_train[len(X_train)//4:]
+    #
+    # y_train_0 = y_train[:len(y_train)//4]
+    # y_train_1 = y_train[len(y_train)//4:]
 
     X_test, y_test = load_testing_data(test_filepath, lm)
 
@@ -71,8 +71,9 @@ def main():
 
     # Создание и обучение модели LSTM
     model = BestModelEverLOL(embedding_matrix, max_sequence_length, BATCH_SIZE)
-    model.train(X_train_0, y_train_0, X_val, y_val, NUM_EPOCHS)
-    # model.save('lstm_model.keras')
+    # model.train(X_train_0, y_train_0, X_val, y_val, NUM_EPOCHS)
+    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
+    model.save('lstm_model.keras')
     # model = BestModelEverLOL.load('lstm_model.keras')
     # print(model.model.summary())
 
@@ -84,7 +85,8 @@ def main():
     model.show_roc_curve(X_test, y_test)
 
 
-    model.train(X_train_1, y_train_1, X_val, y_val, NUM_EPOCHS)
+    # model.train(X_train_1, y_train_1, X_val, y_val, NUM_EPOCHS)
+    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
 
     loss, accuracy = model.evaluate(X_test, y_test)
     print(f"Test Accuracy: {accuracy * 100:.2f}")
