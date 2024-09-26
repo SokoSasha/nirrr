@@ -1,6 +1,7 @@
 import pickle
 import string
 import time
+import contractions
 
 import numpy as np
 from gensim.models import Word2Vec
@@ -8,6 +9,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
 
 
 class LanguageModel:
@@ -16,20 +18,24 @@ class LanguageModel:
         self.model = Word2Vec(vector_size=vector_size, window=window, min_count=min_count, workers=workers)
         self.tokenizer = Tokenizer()
         self.embedding_matrix = None
-        self.stop_words = set(stopwords.words('english'))  # Список стоп-слов
+        self.stop_words = set(stopwords.words('english')) # Список стоп-слов
+        self.stop_words.discard('no')
+        self.stop_words.discard('not')
         self.lemmatizer = WordNetLemmatizer()  # Лемматизатор
 
     def train(self, reviews: list[str], epochs=5, update=False, check=False):
         print("Training model... ", end="")
         start_time = time.perf_counter()
-        translator = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
 
-        # Переводим в нижний регистр, удаляем пунктуацию, токенизируем, удаляем стоп-слова и лемматизируем
-        processed_reviews = [
-            [self.lemmatizer.lemmatize(word) for word in review.lower().translate(translator).split() if
-             word not in self.stop_words]
-            for review in reviews
-        ]
+        processed_reviews = []
+        for review in reviews:
+            expanded_review = contractions.fix(review)
+            tokens = [
+                self.lemmatizer.lemmatize(word)
+                for word in word_tokenize(expanded_review.lower())
+                if word not in self.stop_words and word not in string.punctuation
+            ]
+            processed_reviews.append(tokens)
 
         self.tokenizer.fit_on_texts(processed_reviews)
 
@@ -46,9 +52,6 @@ class LanguageModel:
                 self.embedding_matrix[i] = self.model.wv[word]
 
         if check:
-            similarity = self.model.wv.similarity('good', 'great')
-            print(f"Similarity between 'good' and 'great': {similarity * 100:.2f}%")
-
             most_similar_words = self.model.wv.most_similar('good', topn=5)
             print(f"Most similar words to 'good': {most_similar_words}")
 
@@ -74,12 +77,15 @@ class LanguageModel:
         return instance
 
     def preprocess(self, reviews):
-        translator = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
-        processed_reviews = [
-            [self.lemmatizer.lemmatize(word) for word in review.lower().translate(translator).split() if
-             word not in self.stop_words]
-            for review in reviews
-        ]
+        processed_reviews = []
+        for review in reviews:
+            expanded_review = contractions.fix(review)
+            tokens = [
+                self.lemmatizer.lemmatize(word)
+                for word in word_tokenize(expanded_review.lower())
+                if word not in self.stop_words and word not in string.punctuation
+            ]
+            processed_reviews.append(tokens)
 
         sequences = self.tokenizer.texts_to_sequences(processed_reviews)
         sequences_padded = pad_sequences(sequences, maxlen=self.max_sequence_length)
