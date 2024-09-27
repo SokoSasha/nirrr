@@ -9,6 +9,8 @@ from sklearn.utils import shuffle
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
 
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
 BATCH_SIZE = 32
 NUM_EPOCHS = 5
 
@@ -54,13 +56,14 @@ def main():
 
     all_reviews, all_labels = load_training_data(positive_file, negative_file, equal=True)
 
-    # # best so far: window=1, vector_size=250 (not much difference), min_count=20
+    # best so far: window=1, vector_size=250 (not much difference), min_count=20
     # lm = LanguageModel(window=1, vector_size=250, min_count=20)
     # lm.train(all_reviews, epochs=10, check=True)
     # lm.save()
     lm = LanguageModel.load()
 
     X = lm.preprocess(all_reviews)
+    X = pad_sequences(X, maxlen=lm.get_max_sequence_length)
     X_train, X_val, y_train, y_val = train_test_split(X, np.array(all_labels), test_size=0.2)
 
     X_test, y_test = load_testing_data(test_filepath, lm)
@@ -70,20 +73,25 @@ def main():
     # Создание и обучение модели LSTM
     model = BestModelEverLOL(embedding_matrix, max_sequence_length, BATCH_SIZE)
 
-    parts = 3
-    part_len = len(X_train)//parts
-    for i in range(parts):
-        print(f"Part {i+1}/{parts}")
-
-        X_part = X_train[part_len * i:part_len * (i + 1)]
-        y_part = y_train[part_len * i:part_len * (i + 1)]
-
-        model.train(X_part, y_part, X_val, y_val, NUM_EPOCHS)
-
-        # loss, accuracy = model.evaluate(X_test, y_test)
-        # print(f"Test Accuracy: {accuracy * 100:.2f}")
-        model.show_confision_matrix(X_test, y_test)
+    # parts = 3
+    # part_len = len(X_train)//parts
+    # for i in range(parts):
+    #     print(f"Part {i+1}/{parts}")
+    #
+    #     X_part = X_train[part_len * i:part_len * (i + 1)]
+    #     y_part = y_train[part_len * i:part_len * (i + 1)]
+    #
+    #     model.train(X_part, y_part, X_val, y_val, NUM_EPOCHS)
+    #
+    #     # loss, accuracy = model.evaluate(X_test, y_test)
+    #     # print(f"Test Accuracy: {accuracy * 100:.2f}")
+    #     model.show_confision_matrix(X_test, y_test)
         # model.show_roc_curve(X_test, y_test)
+    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
+    loss, accuracy = model.evaluate(X_test, y_test)
+    print(f"Test Accuracy: {accuracy * 100:.2f}")
+    model.show_confision_matrix(X_test, y_test)
+    model.show_roc_curve(X_test, y_test)
 
     model.save('lstm_model.keras')
     # model = BestModelEverLOL.load('lstm_model.keras')

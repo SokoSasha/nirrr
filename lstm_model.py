@@ -17,12 +17,13 @@ class BestModelEverLOL:
         self.model_name = ""
 
         if embedding_matrix is not None and max_sequence_length is not None:
-            vocab_size, embedding_dim = embedding_matrix.shape
+            self.max_sequence_length = max_sequence_length
+            self.vocab_size, self.embedding_dim = embedding_matrix.shape
             self.model = Sequential()
             # Define input data shape
-            self.model.add(InputLayer(batch_input_shape=(batch_size, max_sequence_length,)))
+            self.model.add(InputLayer(batch_input_shape=(batch_size, self.max_sequence_length,)))
             # Vectorization
-            self.model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
+            self.model.add(Embedding(input_dim=self.vocab_size, output_dim=self.embedding_dim, embeddings_initializer=Constant(embedding_matrix), trainable=False))
             # LSTMs
             self.model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2))
 

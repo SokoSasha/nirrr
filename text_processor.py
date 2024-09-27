@@ -88,9 +88,9 @@ class LanguageModel:
             processed_reviews.append(tokens)
 
         sequences = self.tokenizer.texts_to_sequences(processed_reviews)
-        sequences_padded = pad_sequences(sequences, maxlen=self.max_sequence_length)
+        # sequences_padded = pad_sequences(sequences, maxlen=self.max_sequence_length)
 
-        return sequences_padded
+        return sequences
 
     @property
     def get_max_sequence_length(self):
