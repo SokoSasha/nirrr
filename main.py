@@ -5,14 +5,15 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
+from tensorboard.plugins.pr_curve.summary import raw_data_op
+from tensorflow.python.ops.gen_spectral_ops import batch_ifft
 
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
 
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-
 BATCH_SIZE = 32
 NUM_EPOCHS = 5
+MSL = 200
 
 
 def load_training_data(positive_file, negative_file, equal=False):
@@ -41,10 +42,10 @@ def load_training_data(positive_file, negative_file, equal=False):
 def load_testing_data(test_filepath, lm):
     test_data = pd.read_csv(test_filepath)
     X_test = test_data['review'].values
-    X_test = lm.preprocess(X_test)
+    X_test = lm.pad_sequences(lm.texts_to_sequences(X_test), maxlen=MSL)
     y_test = test_data['class'].values
 
-    X_test, y_test = shuffle(X_test, y_test, random_state=42)
+    X_test, y_test = shuffle(X_test, y_test)
 
     return X_test, y_test
 
@@ -56,22 +57,36 @@ def main():
 
     all_reviews, all_labels = load_training_data(positive_file, negative_file, equal=True)
 
-    # best so far: window=1, vector_size=250 (not much difference), min_count=20
-    # lm = LanguageModel(window=1, vector_size=250, min_count=20)
+    # Лучшие параметры на данный момент: window=1, vector_size=250, min_count=10
+    # lm = LanguageModel(window=5, vector_size=250, min_count=10)
     # lm.train(all_reviews, epochs=10, check=True)
     # lm.save()
+    # exit()
     lm = LanguageModel.load()
 
-    X = lm.preprocess(all_reviews)
-    X = pad_sequences(X, maxlen=lm.get_max_sequence_length)
+
+    X = lm.pad_sequences(lm.texts_to_sequences(all_reviews), maxlen=MSL)
     X_train, X_val, y_train, y_val = train_test_split(X, np.array(all_labels), test_size=0.2)
 
     X_test, y_test = load_testing_data(test_filepath, lm)
-    embedding_matrix = lm.get_embedding_matrix
-    max_sequence_length = lm.get_max_sequence_length
+
+    # Так как модель stateful нужно, чтобы размеры всех батчей был одинаковым
+    crop_size = len(X_train)//BATCH_SIZE * BATCH_SIZE
+    X_train = X_train[:crop_size]
+    y_train = y_train[:crop_size]
+
+    crop_size = len(X_val)//BATCH_SIZE * BATCH_SIZE
+    X_val = X_val[:crop_size]
+    y_val = y_val[:crop_size]
+
+    crop_size = len(X_test)//BATCH_SIZE * BATCH_SIZE
+    X_test = X_test[:crop_size]
+    y_test = y_test[:crop_size]
+
 
     # Создание и обучение модели LSTM
-    model = BestModelEverLOL(embedding_matrix, max_sequence_length, BATCH_SIZE)
+    embedding_matrix = lm.get_embedding_matrix
+    model = BestModelEverLOL(embedding_matrix, MSL, BATCH_SIZE)
 
     # parts = 3
     # part_len = len(X_train)//parts
@@ -95,7 +110,7 @@ def main():
 
     model.save('lstm_model.keras')
     # model = BestModelEverLOL.load('lstm_model.keras')
-    print(model.model.summary())
+    model.summary()
 
 
 

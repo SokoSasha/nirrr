@@ -1,105 +1,93 @@
 import pickle
 import string
 import time
-import contractions
 
+import contractions
 import numpy as np
 from gensim.models import Word2Vec
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.preprocessing.text import Tokenizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 
 
 class LanguageModel:
-    def __init__(self, max_sequence_length=200, vector_size=300, window=10, min_count=5, workers=4):
-        self.max_sequence_length = max_sequence_length
-        self.model = Word2Vec(vector_size=vector_size, window=window, min_count=min_count, workers=workers)
-        self.tokenizer = Tokenizer()
-        self.embedding_matrix = None
-        self.stop_words = set(stopwords.words('english')) # Список стоп-слов
-        self.stop_words.discard('no')
-        self.stop_words.discard('not')
-        self.lemmatizer = WordNetLemmatizer()  # Лемматизатор
+    def __init__(self, vector_size=300, window=10, min_count=5, workers=4):
+        self.__model = Word2Vec(vector_size=vector_size, window=window, min_count=min_count, workers=workers)
+        self.__tokenizer = Tokenizer()
+        self.__embedding_matrix = None
+        self.__stop_words = set(stopwords.words('english'))  # Список стоп-слов
+        self.__stop_words.discard('no')
+        self.__stop_words.discard('not')
+        self.__lemmatizer = WordNetLemmatizer()  # Лемматизатор
 
-    def train(self, reviews: list[str], epochs=5, update=False, check=False):
+    def train(self, texts: list[str], epochs=5, update=False, check=False):
         print("Training model... ", end="")
         start_time = time.perf_counter()
 
-        processed_reviews = []
-        for review in reviews:
-            expanded_review = contractions.fix(review)
-            tokens = [
-                self.lemmatizer.lemmatize(word)
-                for word in word_tokenize(expanded_review.lower())
-                if word not in self.stop_words and word not in string.punctuation
-            ]
-            processed_reviews.append(tokens)
+        all_tokens = self.text_to_txt_tokens(texts)
+        self.__tokenizer.fit_on_texts(all_tokens)
 
-        self.tokenizer.fit_on_texts(processed_reviews)
-
-        self.model.build_vocab(processed_reviews, update=update)
-        history = self.model.train(processed_reviews, total_examples=len(reviews), epochs=epochs)
+        self.__model.build_vocab(all_tokens, update=update)
+        history = self.__model.train(all_tokens, total_examples=len(texts), epochs=epochs)
 
         elapsed_time = time.perf_counter() - start_time
         print(f"done in {elapsed_time:.4f} seconds")
 
-        word_index = self.tokenizer.word_index
-        self.embedding_matrix = np.zeros((len(word_index) + 1, self.model.vector_size))
+        word_index = self.__tokenizer.word_index
+        self.__embedding_matrix = np.zeros((len(word_index) + 1, self.__model.vector_size))
         for word, i in word_index.items():
-            if word in self.model.wv:
-                self.embedding_matrix[i] = self.model.wv[word]
+            if word in self.__model.wv:
+                self.__embedding_matrix[i] = self.__model.wv[word]
 
         if check:
-            most_similar_words = self.model.wv.most_similar('good', topn=5)
+            most_similar_words = self.__model.wv.most_similar('good', topn=5)
             print(f"Most similar words to 'good': {most_similar_words}")
 
-            most_similar_words = self.model.wv.most_similar('bad', topn=5)
+            most_similar_words = self.__model.wv.most_similar('bad', topn=5)
             print(f"Most similar words to 'bad': {most_similar_words}")
 
         return history
 
-    def save(self, word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
-        self.model.save(word2vec_name)
-        np.save(embedding_name, self.embedding_matrix)
+    def save(self, word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy',
+             tokenizer_name='tokenizer.pkl'):
+        self.__model.save(word2vec_name)
+        np.save(embedding_name, self.__embedding_matrix)
         with open(tokenizer_name, 'wb') as file:
-            pickle.dump(self.tokenizer, file)
+            pickle.dump(self.__tokenizer, file)
 
     @staticmethod
     def load(word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
         instance = LanguageModel()
-        instance.model = Word2Vec.load(word2vec_name)
-        instance.embedding_matrix = np.load(embedding_name)
+        instance.__model = Word2Vec.load(word2vec_name)
+        instance.__embedding_matrix = np.load(embedding_name)
         with open(tokenizer_name, 'rb') as file:
-            instance.tokenizer = pickle.load(file)
+            instance.__tokenizer = pickle.load(file)
 
         return instance
 
-    def preprocess(self, reviews):
-        processed_reviews = []
-        for review in reviews:
-            expanded_review = contractions.fix(review)
+    def text_to_txt_tokens(self, texts):
+        all_tokens = []
+        for text in texts:
+            expanded_review = contractions.fix(text)
             tokens = [
-                self.lemmatizer.lemmatize(word)
+                self.__lemmatizer.lemmatize(word)
                 for word in word_tokenize(expanded_review.lower())
-                if word not in self.stop_words and word not in string.punctuation
+                if word not in self.__stop_words and word not in string.punctuation
             ]
-            processed_reviews.append(tokens)
+            all_tokens.append(tokens)
 
-        sequences = self.tokenizer.texts_to_sequences(processed_reviews)
-        # sequences_padded = pad_sequences(sequences, maxlen=self.max_sequence_length)
+        return all_tokens
 
+    def texts_to_sequences(self, texts):
+        sequences = self.__tokenizer.texts_to_sequences(self.text_to_txt_tokens(texts))
         return sequences
 
-    @property
-    def get_max_sequence_length(self):
-        return self.max_sequence_length
+    @staticmethod
+    def pad_sequences(sequences, maxlen=200):
+        return pad_sequences(sequences, maxlen=maxlen)
 
     @property
     def get_embedding_matrix(self):
-        return self.embedding_matrix
-
-    @property
-    def get_tokenizer(self):
-        return self.tokenizer
+        return self.__embedding_matrix
