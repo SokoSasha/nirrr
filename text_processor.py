@@ -35,11 +35,17 @@ class LanguageModel:
         elapsed_time = time.perf_counter() - start_time
         print(f"done in {elapsed_time:.4f} seconds")
 
+        print("Generating embedding matrix...", end="")
+        start_time = time.perf_counter()
+
         word_index = self.__tokenizer.word_index
         self.__embedding_matrix = np.zeros((len(word_index) + 1, self.__model.vector_size))
         for word, i in word_index.items():
             if word in self.__model.wv:
                 self.__embedding_matrix[i] = self.__model.wv[word]
+
+        elapsed_time = time.perf_counter() - start_time
+        print(f"done in {elapsed_time:.4f} seconds")
 
         if check:
             most_similar_words = self.__model.wv.most_similar('good', topn=5)
@@ -52,19 +58,30 @@ class LanguageModel:
 
     def save(self, word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy',
              tokenizer_name='tokenizer.pkl'):
+        print("Saving model... ", end="")
+        start_time = time.perf_counter()
+
         self.__model.save(word2vec_name)
         np.save(embedding_name, self.__embedding_matrix)
         with open(tokenizer_name, 'wb') as file:
             pickle.dump(self.__tokenizer, file)
 
+        elapsed_time = time.perf_counter() - start_time
+        print(f"done in {elapsed_time:.4f} seconds")
+
     @staticmethod
     def load(word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
+        print("Loading model... ", end="")
+        start_time = time.perf_counter()
+
         instance = LanguageModel()
         instance.__model = Word2Vec.load(word2vec_name)
         instance.__embedding_matrix = np.load(embedding_name)
         with open(tokenizer_name, 'rb') as file:
             instance.__tokenizer = pickle.load(file)
 
+        elapsed_time = time.perf_counter() - start_time
+        print(f"done in {elapsed_time:.4f} seconds")
         return instance
 
     def text_to_txt_tokens(self, texts):

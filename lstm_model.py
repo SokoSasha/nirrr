@@ -1,11 +1,37 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
+import tensorflow as tf
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import confusion_matrix, roc_curve, auc
+
 from tensorflow.keras.initializers import Constant
 from tensorflow.keras.layers import LSTM, Dense, Embedding, InputLayer
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.optimizers import Adam
+
+
+def tf_f1_score(y_true, y_pred):
+    y_pred = tf.round(y_pred)
+    tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
+    precision_1 = 1 / tf_precision(y_true, y_pred)
+    recall_1 = 1 / tf_recall(y_true, y_pred)
+    return 2 / (precision_1 + recall_1 + tf.keras.backend.epsilon())
+
+
+def tf_precision(y_true, y_pred):
+    y_pred = tf.round(y_pred)
+    tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
+    precision = tp / (tf.reduce_sum(tf.cast(y_pred, 'float'), axis=0) + tf.keras.backend.epsilon())
+    return precision
+
+
+def tf_recall(y_true, y_pred):
+    y_pred = tf.round(y_pred)
+    tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
+    recall = tp / (tf.reduce_sum(tf.cast(y_true, 'float'), axis=0) + tf.keras.backend.epsilon())
+    return recall
 
 
 class BestModelEverLOL:
@@ -24,22 +50,23 @@ class BestModelEverLOL:
                                        embeddings_initializer=Constant(embedding_matrix), trainable=False))
             # LSTMs
             # self.__model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2, stateful=True))
-            self.__model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2, return_sequences=True, stateful=True))
-            self.__model.add(LSTM(16, dropout=0.5, recurrent_dropout=0.2, stateful=True))
+            self.__model.add(LSTM(32, return_sequences=True, stateful=True))
+            self.__model.add(LSTM(16, stateful=True))
 
             # Denses
             self.__model.add(Dense(1, activation='sigmoid'))
 
             self.__model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001),
-                                 metrics=['binary_accuracy'])
+                                 metrics=['binary_accuracy', tf_precision, tf_recall])
         else:
             self.__model = None
 
-    def train(self, X_train, y_train, X_val, y_val, num_epochs):
+    def train(self, X_train, y_train, X_val, y_val, num_epochs, class_weight):
         # self.__model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=num_epochs, batch_size=self.__batch_size)
         for i in range(num_epochs):
             print(f"Epoch {(i + 1)}/{num_epochs}")
-            self.__model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1, batch_size=self.__batch_size)
+            self.__model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1, batch_size=self.__batch_size,
+                             class_weight=class_weight)
             self.reset()
 
     def save(self, filename):
@@ -75,16 +102,16 @@ class BestModelEverLOL:
         self.__model.summary(expand_nested=True, show_trainable=True)
 
     def evaluate(self, X_test, y_test):
-        loss, accuracy = self.__model.evaluate(X_test, y_test, batch_size=self.__batch_size)
-        return loss, accuracy
+        res = self.__model.evaluate(X_test, y_test, batch_size=self.__batch_size)
+        return res
 
-    def predict(self, X_test, batch_size=None, verbose=0):
+    def predict(self, X_test, batch_size=None, verbose=False):
         if batch_size is None:
             batch_size = self.__batch_size
         return self.__model.predict(X_test, batch_size=batch_size, verbose=verbose)
 
-    def show_confision_matrix(self, X_test, y_test):
-        y_pred_probs = self.predict(X_test, batch_size=self.__batch_size)
+    def show_confision_matrix(self, X_test, y_test, title='Confusion matrix'):
+        y_pred_probs = self.predict(X_test)
         y_pred = (y_pred_probs > 0.5).astype(int)
 
         conf_matrix = confusion_matrix(y_test, y_pred)
@@ -95,11 +122,11 @@ class BestModelEverLOL:
                     yticklabels=['Negative', 'Positive'])
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
-        plt.title('Confusion Matrix')
+        plt.title(title)
         plt.show()
 
     def show_roc_curve(self, X_test, y_test):
-        y_pred_probs = self.predict(X_test, batch_size=self.__batch_size)
+        y_pred_probs = self.predict(X_test)
 
         y_pred = (y_pred_probs > 0.5).astype(int)
         y_pred_probs = y_pred_probs.ravel()
@@ -120,7 +147,23 @@ class BestModelEverLOL:
         plt.legend(loc='lower right')
         plt.show()
 
-        # Отчет по классификации
-        print(classification_report(y_test, y_pred, target_names=['Negative', 'Positive']))
-        print('---------------------------------------------------------------------------------------')
-        print()
+    def print_metrics(self, X_test, y_test):
+        y_pred = self.__model.predict(X_test)
+        y_pred = (y_pred > 0.5).astype(int)  # Округление предсказаний до 0 или 1
+
+        # Истинные метки
+        y_true = y_test  # Замените на реальные метки тестовых данных
+
+        # Вычисление метрик
+        accuracy = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
+        f1 = f1_score(y_true, y_pred)
+
+        # Вывод метрик
+        print('-----------------')
+        print(f"Accuracy:  {accuracy * 100:.2f}%")
+        print(f"Precision: {precision * 100:.2f}%")
+        print(f"Recall:    {recall * 100:.2f}%")
+        print(f"F1-score:  {f1 * 100:.2f}%")
+        print('-----------------')

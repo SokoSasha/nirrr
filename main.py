@@ -1,12 +1,9 @@
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
-from tensorboard.plugins.pr_curve.summary import raw_data_op
-from tensorflow.python.ops.gen_spectral_ops import batch_ifft
 
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
@@ -55,34 +52,40 @@ def main():
     negative_file = "TrainingDataNegative.txt"
     test_filepath = 'TestReviews.csv'
 
-    all_reviews, all_labels = load_training_data(positive_file, negative_file, equal=True)
+    all_reviews, all_labels = load_training_data(positive_file, negative_file, equal=False)
 
-    # Лучшие параметры на данный момент: window=1, vector_size=250, min_count=10
-    # lm = LanguageModel(window=5, vector_size=250, min_count=10)
-    # lm.train(all_reviews, epochs=10, check=True)
+    lm_window = 5
+    lm_vector_size = 300
+    lm_min_count = 10
+    lm_epoches = 10
+
+    # Лучшие параметры на данный момент: window=5, vector_size=300, min_count=10
+    # lm = LanguageModel(window=lm_window, vector_size=lm_vector_size, min_count=lm_min_count)
+    # lm.train(all_reviews, epochs=lm_epoches, check=True)
     # lm.save()
-    # exit()
     lm = LanguageModel.load()
 
-
+    print("Preprocessing texts...", end="")
+    start_time = time.perf_counter()
     X = lm.pad_sequences(lm.texts_to_sequences(all_reviews), maxlen=MSL)
-    X_train, X_val, y_train, y_val = train_test_split(X, np.array(all_labels), test_size=0.2)
+    elapsed_time = time.perf_counter() - start_time
+    print(f"done in {elapsed_time:0.4f} seconds")
 
+    X_train, X_val, y_train, y_val = train_test_split(X, np.array(all_labels), test_size=0.2)
     X_test, y_test = load_testing_data(test_filepath, lm)
 
     # Так как модель stateful нужно, чтобы размеры всех батчей был одинаковым
-    crop_size = len(X_train)//BATCH_SIZE * BATCH_SIZE
+    crop_size = len(X_train) // BATCH_SIZE * BATCH_SIZE
     X_train = X_train[:crop_size]
     y_train = y_train[:crop_size]
 
-    crop_size = len(X_val)//BATCH_SIZE * BATCH_SIZE
+    crop_size = len(X_val) // BATCH_SIZE * BATCH_SIZE
     X_val = X_val[:crop_size]
     y_val = y_val[:crop_size]
 
-    crop_size = len(X_test)//BATCH_SIZE * BATCH_SIZE
+    crop_size = len(X_test) // BATCH_SIZE * BATCH_SIZE
     X_test = X_test[:crop_size]
     y_test = y_test[:crop_size]
-
 
     # Создание и обучение модели LSTM
     embedding_matrix = lm.get_embedding_matrix
@@ -101,17 +104,18 @@ def main():
     #     # loss, accuracy = model.evaluate(X_test, y_test)
     #     # print(f"Test Accuracy: {accuracy * 100:.2f}")
     #     model.show_confision_matrix(X_test, y_test)
-        # model.show_roc_curve(X_test, y_test)
-    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS)
-    loss, accuracy = model.evaluate(X_test, y_test)
-    print(f"Test Accuracy: {accuracy * 100:.2f}")
-    model.show_confision_matrix(X_test, y_test)
+    # model.show_roc_curve(X_test, y_test)
+    class_weight = {0: 3.0, 1: 1.0}
+    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS, class_weight)
+    model.evaluate(X_test, y_test)
+    model.show_confision_matrix(X_test, y_test,
+                                title=f"w: {lm_window}, vs: {lm_vector_size}, mc: {lm_min_count}, e: {lm_epoches}, cw: {class_weight}, +precision +recall")
     model.show_roc_curve(X_test, y_test)
+    model.print_metrics(X_test, y_test)
 
-    model.save('lstm_model.keras')
+    # model.save('lstm_model.keras')
     # model = BestModelEverLOL.load('lstm_model.keras')
     model.summary()
-
 
 
 if __name__ == "__main__":

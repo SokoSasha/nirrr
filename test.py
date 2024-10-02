@@ -1,10 +1,10 @@
 import time
 
 import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
 def main():
@@ -41,7 +41,7 @@ def main():
                 context_buffer.extend(lm.texts_to_sequences([sentence])[0])
                 lcb = len(context_buffer)
                 if lcb > msl:
-                    context_buffer = context_buffer[lcb-msl:]
+                    context_buffer = context_buffer[lcb - msl:]
                 sequences_padded = lm.pad_sequences([context_buffer], maxlen=msl)
                 confidence = model.predict(sequences_padded, verbose=0)[0][0]
                 conf.append(confidence)
