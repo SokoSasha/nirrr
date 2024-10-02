@@ -12,14 +12,6 @@ from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.optimizers import Adam
 
 
-def tf_f1_score(y_true, y_pred):
-    y_pred = tf.round(y_pred)
-    tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
-    precision_1 = 1 / tf_precision(y_true, y_pred)
-    recall_1 = 1 / tf_recall(y_true, y_pred)
-    return 2 / (precision_1 + recall_1 + tf.keras.backend.epsilon())
-
-
 def tf_precision(y_true, y_pred):
     y_pred = tf.round(y_pred)
     tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
@@ -50,7 +42,7 @@ class BestModelEverLOL:
                                        embeddings_initializer=Constant(embedding_matrix), trainable=False))
             # LSTMs
             # self.__model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2, stateful=True))
-            self.__model.add(LSTM(32, return_sequences=True, stateful=True))
+            self.__model.add(LSTM(32, return_sequences=True, stateful=True, dropout=0.5, recurrent_dropout=0.5))
             self.__model.add(LSTM(16, stateful=True))
 
             # Denses
@@ -110,12 +102,9 @@ class BestModelEverLOL:
             batch_size = self.__batch_size
         return self.__model.predict(X_test, batch_size=batch_size, verbose=verbose)
 
-    def show_confision_matrix(self, X_test, y_test, title='Confusion matrix'):
-        y_pred_probs = self.predict(X_test)
-        y_pred = (y_pred_probs > 0.5).astype(int)
-
+    def show_confision_matrix(self, y_pred, y_test, title='Confusion matrix'):
         conf_matrix = confusion_matrix(y_test, y_pred)
-        conf_matrix_normalized = conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
+        conf_matrix_normalized = 100 * conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
 
         plt.figure(constrained_layout=True)
         sns.heatmap(conf_matrix_normalized, annot=True, fmt='.2f', cmap='Greens', xticklabels=['Negative', 'Positive'],
@@ -125,11 +114,8 @@ class BestModelEverLOL:
         plt.title(title)
         plt.show()
 
-    def show_roc_curve(self, X_test, y_test):
-        y_pred_probs = self.predict(X_test)
-
-        y_pred = (y_pred_probs > 0.5).astype(int)
-        y_pred_probs = y_pred_probs.ravel()
+    def show_roc_curve(self, y_pred, y_test):
+        y_pred_probs = y_pred.ravel()
 
         # Вычисление ROC-кривой
         fpr, tpr, _ = roc_curve(y_test, y_pred_probs)
@@ -147,18 +133,11 @@ class BestModelEverLOL:
         plt.legend(loc='lower right')
         plt.show()
 
-    def print_metrics(self, X_test, y_test):
-        y_pred = self.__model.predict(X_test)
-        y_pred = (y_pred > 0.5).astype(int)  # Округление предсказаний до 0 или 1
-
-        # Истинные метки
-        y_true = y_test  # Замените на реальные метки тестовых данных
-
-        # Вычисление метрик
-        accuracy = accuracy_score(y_true, y_pred)
-        precision = precision_score(y_true, y_pred)
-        recall = recall_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred)
+    def print_metrics(self, y_pred, y_test):
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
 
         # Вывод метрик
         print('-----------------')

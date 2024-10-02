@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import time
 
 import matplotlib.pyplot as plt
@@ -51,8 +54,6 @@ def main():
                 total_sentences += 1
                 # print(f"{elapsed_time:.4f} seconds")
                 # print(f"{confidence * 100:.2f}% positive")
-                if confidence < 0.5:
-                    print(f'{sentence}\n\t{confidence}')
         model.reset()
 
         plt.figure(figsize=(12, 5))
