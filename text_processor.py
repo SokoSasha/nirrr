@@ -71,7 +71,7 @@ class LanguageModel:
 
     @staticmethod
     def load(word2vec_name='word2vec_model.bin', embedding_name='embedding_matrix.npy', tokenizer_name='tokenizer.pkl'):
-        print("Loading model... ", end="")
+        print("Loading Word2Vec model... ", end="")
         start_time = time.perf_counter()
 
         instance = LanguageModel()

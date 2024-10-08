@@ -1,3 +1,5 @@
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -10,8 +12,10 @@ from tensorflow.keras.initializers import Constant
 from tensorflow.keras.layers import LSTM, Dense, Embedding, InputLayer
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.saving import register_keras_serializable
 
 
+@register_keras_serializable()
 def tf_precision(y_true, y_pred):
     y_pred = tf.round(y_pred)
     tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
@@ -19,6 +23,7 @@ def tf_precision(y_true, y_pred):
     return precision
 
 
+@register_keras_serializable()
 def tf_recall(y_true, y_pred):
     y_pred = tf.round(y_pred)
     tp = tf.reduce_sum(tf.cast(y_true, 'float32') * tf.cast(y_pred, 'float32'), axis=0)
@@ -42,8 +47,8 @@ class BestModelEverLOL:
                                        embeddings_initializer=Constant(embedding_matrix), trainable=False))
             # LSTMs
             # self.__model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2, stateful=True))
-            self.__model.add(LSTM(32, return_sequences=True, stateful=True, dropout=0.5, recurrent_dropout=0.5))
-            self.__model.add(LSTM(16, stateful=True))
+            self.__model.add(LSTM(32, return_sequences=True, stateful=False, dropout=0.5, recurrent_dropout=0.5))
+            self.__model.add(LSTM(16, stateful=False))
 
             # Denses
             self.__model.add(Dense(1, activation='sigmoid'))
@@ -74,11 +79,15 @@ class BestModelEverLOL:
 
     @staticmethod
     def load(filename='lstm_model.keras'):
+        print("Loading classifier model... ", end="")
+        start_time = time.perf_counter()
         instance = BestModelEverLOL()
         instance.__model = load_model(filename)
         instance.__model_name = filename
         instance.__batch_size = instance.__model.layers[0].input.shape[0]
         instance.__max_sequence_length = instance.__model.layers[0].input.shape[1]
+        elapsed_time = time.perf_counter() - start_time
+        print(f"done in {elapsed_time:.4f} seconds")
 
         return instance
 
@@ -103,6 +112,7 @@ class BestModelEverLOL:
         return self.__model.predict(X_test, batch_size=batch_size, verbose=verbose)
 
     def show_confision_matrix(self, y_pred, y_test, title='Confusion matrix'):
+        y_pred = (y_pred > 0.5).astype(int)
         conf_matrix = confusion_matrix(y_test, y_pred)
         conf_matrix_normalized = 100 * conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
 
@@ -134,6 +144,7 @@ class BestModelEverLOL:
         plt.show()
 
     def print_metrics(self, y_pred, y_test):
+        y_pred = (y_pred > 0.5).astype(int)
         accuracy = accuracy_score(y_test, y_pred)
         precision = precision_score(y_test, y_pred)
         recall = recall_score(y_test, y_pred)

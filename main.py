@@ -1,3 +1,4 @@
+print("Loading modules... ", end='')
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -10,6 +11,8 @@ from sklearn.utils import shuffle
 
 from lstm_model import BestModelEverLOL
 from text_processor import LanguageModel
+
+print("done!")
 
 BATCH_SIZE = 32
 NUM_EPOCHS = 5
@@ -96,38 +99,36 @@ def main():
     # Создание и обучение модели LSTM
     embedding_matrix = lm.get_embedding_matrix
     model = BestModelEverLOL(embedding_matrix, MSL, BATCH_SIZE)
+    # model = BestModelEverLOL.load()
 
-    parts = 4
-    part_len = len(X_train)//parts
-    for i in range(parts):
-        print(f"Part {i+1}/{parts}")
+    # parts = 4
+    # part_len = len(X_train)//parts
+    # for i in range(parts):
+    #     print(f"Part {i+1}/{parts}")
+    #
+    #     X_part = X_train[part_len * i:part_len * (i + 1)]
+    #     y_part = y_train[part_len * i:part_len * (i + 1)]
+    #
+    #     crop_size = len(X_part) // BATCH_SIZE * BATCH_SIZE
+    #     X_part = X_part[:crop_size]
+    #     y_part = y_part[:crop_size]
+    #
+    #     model.train(X_part, y_part, X_val, y_val, NUM_EPOCHS, class_weight)
+    #     y_pred = model.predict(X_test)
+    #     model.reset()
+    #     y_pred = (y_pred > 0.5).astype(int)
+    #     model.show_confision_matrix(y_pred, y_test, title=f'Confusion matrix: training {i+1}/{parts}')
+    #     model.print_metrics(y_pred, y_test)
 
-        X_part = X_train[part_len * i:part_len * (i + 1)]
-        y_part = y_train[part_len * i:part_len * (i + 1)]
-
-        crop_size = len(X_part) // BATCH_SIZE * BATCH_SIZE
-        X_part = X_part[:crop_size]
-        y_part = y_part[:crop_size]
-
-        model.train(X_part, y_part, X_val, y_val, NUM_EPOCHS, class_weight)
-        y_pred = model.predict(X_test)
-        model.reset()
-        y_pred = (y_pred > 0.5).astype(int)
-        model.show_confision_matrix(y_pred, y_test, title=f'Confusion matrix: training {i+1}/{parts}')
-        model.print_metrics(y_pred, y_test)
-
-    # model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS, class_weight)
+    model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS, class_weight)
+    model.save('lstm_model_stateless.keras')
 
     # Метрики
-    # y_pred = model.predict(X_test)
-    # y_pred = (y_pred > 0.5).astype(int)
-    # model.show_confision_matrix(y_pred, y_test,
-    #                             title=f"w: {lm_window}, vs: {lm_vector_size}, mc: {lm_min_count}, e: {lm_epoches}, cw: {class_weight}, +precision +recall")
-    # model.show_roc_curve(X_test, y_test)
-    # model.print_metrics(y_pred, y_test)
+    y_pred = model.predict(X_test)
+    model.show_confision_matrix(y_pred, y_test)
+    model.show_roc_curve(y_pred, y_test)
+    model.print_metrics(y_pred, y_test)
 
-    # model.save('lstm_model.keras')
-    # model = BestModelEverLOL.load('lstm_model.keras')
     # model.summary()
 
 
