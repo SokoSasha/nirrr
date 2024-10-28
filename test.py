@@ -11,7 +11,7 @@ from text_processor import LanguageModel
 
 
 def main():
-    model = BestModelEverLOL.load()
+    model = BestModelEverLOL.load("lstm_model_stateful.keras")
     lm = LanguageModel.load()
     msl = model.get_max_sequence_length
 

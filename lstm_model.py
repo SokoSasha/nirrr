@@ -47,8 +47,8 @@ class BestModelEverLOL:
                                        embeddings_initializer=Constant(embedding_matrix), trainable=False))
             # LSTMs
             # self.__model.add(LSTM(32, dropout=0.5, recurrent_dropout=0.2, stateful=True))
-            self.__model.add(LSTM(32, return_sequences=True, stateful=False, dropout=0.5, recurrent_dropout=0.5))
-            self.__model.add(LSTM(16, stateful=False))
+            self.__model.add(LSTM(32, return_sequences=True, stateful=True, dropout=0.5, recurrent_dropout=0.5))
+            self.__model.add(LSTM(16, stateful=True))
 
             # Denses
             self.__model.add(Dense(1, activation='sigmoid'))

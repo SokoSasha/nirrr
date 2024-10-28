@@ -121,7 +121,7 @@ def main():
     #     model.print_metrics(y_pred, y_test)
 
     model.train(X_train, y_train, X_val, y_val, NUM_EPOCHS, class_weight)
-    model.save('lstm_model_stateless.keras')
+    model.save('lstm_model_stateful.keras')
 
     # Метрики
     y_pred = model.predict(X_test)
